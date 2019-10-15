@@ -1,0 +1,30 @@
+# Labels to add to all resources and selectors.
+commonLabels:
+  app: vault
+
+# Each entry in this list results in the creation of
+# one ConfigMap resource (it's a generator of n maps).
+configMapGenerator:
+- files:
+  - vault-config-config.json
+  name: vault-config
+
+# Images modify the tags for images without
+# creating patches.
+images:
+- name: vault
+  newTag: 1.1.2
+
+# Value of this field is prepended to the
+# names of all resources
+namePrefix: vault
+
+# List of resource files that kustomize reads, modifies
+# and emits as a YAML string
+resources:
+- vault-crb.yaml
+- vault-deploy.yaml
+- vault-pdb.yaml
+- vault-sa.yaml
+- vault-svc.yaml
+- vault-vault-status-test-pod.yaml

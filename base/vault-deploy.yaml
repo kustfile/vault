@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vault
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: vault
+  strategy:
+    rollingUpdate:
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        checksum/config: f624e0d535d90e08a2792e480345f1aedf798db0f56144f202f2bd414a9e2fa9
+      labels:
+        app: vault
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: vault
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+      containers:
+      - command:
+        - vault
+        - server
+        - -dev
+        - -dev-listen-address
+        - '[::]:8200'
+        env:
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: VAULT_API_ADDR
+          value: http://$(POD_IP):8200
+        - name: VAULT_LOG_LEVEL
+          value: info
+        image: vault:1.1.2
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          httpGet:
+            path: /v1/sys/health?standbyok=true&uninitcode=204&sealedcode=204&
+            port: 8200
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        name: vault
+        ports:
+        - containerPort: 8200
+          name: api
+        - containerPort: 8201
+          name: cluster-address
+        readinessProbe:
+          httpGet:
+            path: /v1/sys/health?standbycode=204&uninitcode=204&
+            port: 8200
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        securityContext:
+          capabilities:
+            add:
+            - IPC_LOCK
+          readOnlyRootFilesystem: true
+        volumeMounts:
+        - mountPath: /vault/config/
+          name: vault-config
+        - mountPath: /root/
+          name: vault-root
+      serviceAccountName: vault
+      volumes:
+      - configMap:
+          name: vault-config
+        name: vault-config
+      - name: vault-root
